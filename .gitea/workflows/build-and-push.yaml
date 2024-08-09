@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  chartVersion: 0.6.1
+  chartVersion: 0.6.2
   containerRegistry: 'git.cluster.tf'
   HELM_EXPERIMENTAL_OCI: 1
 

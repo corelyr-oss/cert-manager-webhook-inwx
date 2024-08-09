@@ -15,6 +15,9 @@ image:
   pullPolicy: IfNotPresent
   tag: ""
 
+imagePullSecrets:
+  - name: docker-key-gitea
+
 nameOverride: ""
 fullnameOverride: ""
 
