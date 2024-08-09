@@ -16,12 +16,12 @@ The following table lists the configurable parameters of the cert-manager chart 
 
 | Parameter | Description | Default |
 | --------- | ----------- | ------- |
-| `groupName` | Group name of the API service. | `cert-manager-webhook-inwx.smueller18.gitlab.com` |
+| `groupName` | Group name of the API service. | `cert-manager-webhook-inwx.git.cluster.tf` |
 | `credentialsSecretRefs` | Names of secrets where INWX credentials are stored. Used for RBAC to allow reading the secret by the service account name of webhook. | `['inwx-credentials']` |
 | `deployment.loglevel` | Number for the log level verbosity of webhook deployment | 2 |
 | `certManager.namespace` | Namespace where cert-manager is deployed to. | `cert-manager` |
 | `certManager.serviceAccountName` | Service account of cert-manager installation. | `cert-manager` |
-| `image.repository` | Image repository | `registry.gitlab.com/smueller18/cert-manager-webhook-inwx` |
+| `image.repository` | Image repository | `registry.git.cluster.tf/los/cert-manager-webhook-inwx` |
 | `image.tag` | Image tag | `v0.4.1` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `service.type` | API service type | `ClusterIP` |
@@ -77,7 +77,7 @@ spec:
     solvers:
       - dns01:
           webhook:
-            groupName: cert-manager-webhook-inwx.smueller18.gitlab.com
+            groupName: cert-manager-webhook-inwx.git.cluster.tf
             solverName: inwx
             config:
               ttl: 300 # default 300
@@ -198,7 +198,7 @@ spec:
 ### Building the container image
 
 ```bash
-docker build -t registry.gitlab.com/smueller18/cert-manager-webhook-inwx:master .
+docker build -t registry.git.cluster.tf/los/cert-manager-webhook-inwx:master .
 ```
 
 ### Running the full suite with microk8s
@@ -208,7 +208,7 @@ Tested with Ubuntu:
 ```bash
 sudo snap install microk8s --classic
 sudo microk8s.enable dns rbac
-sudo microk8s.kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.0.1/cert-manager.yaml
+sudo microk8s.kubectl apply -f https:// github.com/cert-manager/cert-manager/releases/download/v1.0.1/cert-manager.yaml
 sudo microk8s.config > /tmp/microk8s.config
 export KUBECONFIG=/tmp/microk8s.config
 helm install --namespace cert-manager cert-manager-webhook-inwx deploy/cert-manager-webhook-inwx

@@ -1,16 +1,17 @@
 package main
 
 import (
-	logf "github.com/jetstack/cert-manager/pkg/logs"
-	"github.com/jetstack/cert-manager/test/acme/dns"
-	"github.com/jetstack/cert-manager/test/acme/dns/server"
-	"gitlab.com/smueller18/cert-manager-webhook-inwx/test"
 	"io/ioutil"
-	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"git.cluster.tf/los/cert-manager-webhook-inwx/test"
+	logf "github.com/cert-manager/cert-manager/pkg/logs"
+	dns "github.com/cert-manager/cert-manager/test/acme"
+	"github.com/cert-manager/cert-manager/test/acme/server"
+	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 var (
@@ -100,7 +101,7 @@ func TestRunSuiteWithSecret(t *testing.T) {
 	}
 	defer srv.Shutdown()
 
-	d, err := ioutil.ReadFile("testdata/config.secret.json")
+	d, err := os.ReadFile("testdata/config.secret.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -204,7 +205,7 @@ func TestRunSuiteWithSecretAndTwoFA(t *testing.T) {
 	}
 	defer srv.Shutdown()
 
-	d, err := ioutil.ReadFile("testdata/config-otp.secret.json")
+	d, err := os.ReadFile("testdata/config-otp.secret.json")
 	if err != nil {
 		log.Fatal(err)
 	}
