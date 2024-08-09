@@ -10,8 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  chartVersion: 0.6.0
-  appMajorMinorVersion: 0.1
+  chartVersion: 0.6.1
   containerRegistry: 'git.cluster.tf'
   HELM_EXPERIMENTAL_OCI: 1
 
@@ -63,7 +62,7 @@ jobs:
           export DOCKER_TLS_VERIFY=1
           export DOCKER_CERT_PATH="/certs/client"
           docker context create builders
-          
+
       # https://github.com/docker/setup-buildx-action
       # https://docs.docker.com/engine/reference/commandline/cli/#environment-variables
       - name: Setup Docker Buildx

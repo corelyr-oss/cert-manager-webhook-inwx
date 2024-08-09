@@ -12,8 +12,8 @@ certManager:
 
 image:
   repository: git.cluster.tf/los/cert-manager-webhook-inwx
-  tag: v0.5.0
   pullPolicy: IfNotPresent
+  tag: ""
 
 nameOverride: ""
 fullnameOverride: ""
