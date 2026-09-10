@@ -1,0 +1,194 @@
+name: image
+
+# Builds the cert-manager INWX DNS-01 webhook image and the Helm chart that
+# deploys it, and pushes both to ghcr.io as PUBLIC packages. This replaces
+# .gitea/workflows/build-and-push.yaml from when the repository lived on
+# git.cluster.tf, whose registry died with the `fw` host it ran on.
+#
+# ⚠️  THE INTERMEDIATE repository.tf PLAN NEVER HAPPENED. clp-talos-state-prod
+# 769834e repointed this chart at oci://repository.tf/los/charts and said the
+# artifacts "must be pushed before this merges". They were not, so Argo CD has
+# been serving `not found` for chart 0.6.3 ever since and the Deployment has sat
+# in ImagePullBackOff. Nothing on repository.tf is worth recovering.
+#
+# WHY ghcr.io AND NOT harbor.corelyr.com, which is where clp-vault-unseal
+# publishes. Harbor's `infra` project is private, so every consumer needs a
+# credential: a Vault Harbor role per repository, a JWT auth role bound to the
+# repository name, a pull secret minted per namespace in the consuming cluster,
+# and a chart credential for Argo CD. That machinery earns its keep for an image
+# that unseals Vault. This is an Apache-2.0 fork of a public upstream, with
+# nothing in it that is ours to keep -- the binary is a DNS-01 solver, the chart
+# is its Deployment, and neither embeds a secret. Published PUBLIC on ghcr.io it
+# needs no credential on either side, which removes four moving parts from the
+# path a certificate renewal depends on.
+#
+# ⚠️  PACKAGES ARE CREATED PRIVATE. GitHub does not have a "publish this
+# publicly" flag in the workflow: the first push creates the package private, and
+# somebody has to flip it once, per package, in the repository's package
+# settings. There are TWO here -- the image and the chart. A package left private
+# fails at the CLUSTER and not here: the workflow pushes happily and the kubelet
+# gets a 401 it reports as ImagePullBackOff, or Argo CD reports a chart it could
+# not download.
+#
+# CREDENTIALS: none, and none stored. GITHUB_TOKEN is minted for the run and
+# expires with it; `packages: write` below is what lets it push to this
+# repository's own packages. Nothing to rotate, nothing that outlives a job.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/corelyr-oss/cert-manager-webhook-inwx
+  # The OCI repository the packaged chart is pushed INTO -- helm appends the
+  # chart name, so the chart lands at
+  # ghcr.io/corelyr-oss/charts/cert-manager-webhook-inwx.
+  #
+  # ⚠️  THE `/charts` SEGMENT IS NOT DECORATION. Pushing the chart to
+  # oci://ghcr.io/corelyr-oss would put it at exactly the path the image already
+  # occupies, and the second artifact to arrive would sit in the same package as
+  # a stray tag. Keeping them apart is what makes both readable in the org's
+  # package list.
+  CHART_REPO: oci://ghcr.io/corelyr-oss/charts
+  CHART_DIR: ./deploy/cert-manager-webhook-inwx
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go build ./...
+      - run: go vet ./...
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # NO `go test`, deliberately. main_test.go is cert-manager's DNS-01
+      # conformance fixture: it wants the kubebuilder control-plane binaries
+      # (scripts/fetch-test-binaries.sh, amd64 only) AND a real INWX account,
+      # because testdata/config.json is rendered from config.json.tpl with live
+      # credentials and the suite creates and deletes TXT records in a zone it
+      # owns. Running it here would mean giving a public repository's CI a
+      # registrar login. It is a local pre-release check; see README.
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # What lets GITHUB_TOKEN push to this repository's packages. Without it the
+      # push fails at the registry with a 403 after the build has already run.
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      # Pull requests build but do not push, so a Dockerfile that no longer
+      # builds fails on the PR rather than on the merge. A PR from a fork gets a
+      # read-only GITHUB_TOKEN regardless, so this is belt and braces.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # sha-<short> is the tag shape the Gitea pipeline produced and the shape
+      # the chart's appVersion is written in below, so the tag that was last
+      # deployed (sha-918d625) stays findable by the same spelling.
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          # amd64 only, matching the cluster nodes. The Gitea pipeline installed
+          # qemu-user-static for a cross-build it then never asked for.
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  chart:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      - name: Lint
+        run: helm lint .
+        working-directory: ${{ env.CHART_DIR }}
+
+      # A SEPARATE LOGIN from the build job's: Helm does not read Docker's
+      # config.json -- its OCI client keeps its own registry config -- and a
+      # login in another job would not carry here anyway.
+      - name: Log in to GHCR (Helm OCI)
+        if: github.event_name != 'pull_request'
+        run: |
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | \
+            helm registry login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
+
+      # The chart version is whatever deploy/cert-manager-webhook-inwx/Chart.yaml
+      # says -- the Gitea pipeline kept it at 0.0.0 and sed'd a workflow variable
+      # (`chartVersion: 0.6.2`) over it at package time, which meant the version a
+      # chart carried was invisible from the file that was supposed to declare it.
+      # Bumping it is now an edit to Chart.yaml.
+      #
+      # An unbumped version is a SKIP and not a failure: most commits here change
+      # Go code and not the chart, and failing them would make every application
+      # change carry a chart bump it does not need. The consequence to know is
+      # that a chart edit merged WITHOUT a version bump is silently not
+      # published; the log line below is where that shows up.
+      #
+      # appVersion is set at package time to the image tag this run built, so a
+      # chart pulled from GHCR deploys the image built from the same commit --
+      # values.yaml leaves image.tag empty precisely so it falls through to this.
+      - name: Package and push the chart
+        if: github.event_name != 'pull_request'
+        working-directory: ${{ env.CHART_DIR }}
+        run: |
+          set -euo pipefail
+          version=$(helm show chart . | awk '/^version:/ {print $2}')
+          app_version="sha-$(git rev-parse --short=7 "$GITHUB_SHA")"
+
+          if helm show chart "$CHART_REPO/cert-manager-webhook-inwx" --version "$version" >/dev/null 2>&1; then
+            echo "chart version $version is already published; skipping."
+            echo "Bump version in $CHART_DIR/Chart.yaml to publish a new one."
+            exit 0
+          fi
+
+          helm package . --app-version "$app_version"
+          helm push "cert-manager-webhook-inwx-${version}.tgz" "$CHART_REPO"

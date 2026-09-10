@@ -19,8 +19,9 @@ The following table lists the configurable parameters of the cert-manager chart 
 | `deployment.loglevel` | Number for the log level verbosity of webhook deployment | 2 |
 | `certManager.namespace` | Namespace where cert-manager is deployed to. | `cert-manager` |
 | `certManager.serviceAccountName` | Service account of cert-manager installation. | `cert-manager` |
-| `image.repository` | Image repository | `registry.git.cluster.tf/los/cert-manager-webhook-inwx` |
-| `image.tag` | Image tag | `v0.4.1` |
+| `image.repository` | Image repository | `ghcr.io/corelyr-oss/cert-manager-webhook-inwx` |
+| `image.tag` | Image tag | empty — falls through to the chart's `appVersion`, which CI sets to the image built from the same commit |
+| `imagePullSecrets` | Pull secrets. Empty: the packages are public | `[]` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `service.type` | API service type | `ClusterIP` |
 | `service.port` | API service port | `443` |
@@ -188,16 +189,56 @@ spec:
     go mod download
     ```
 
+1. Fetch the kubebuilder control-plane binaries and point `KUBEBUILDER_ASSETS` at
+   them. The fixture used to be told where they were with `dns.SetBinariesPath`;
+   cert-manager removed that option, and the environment variable is what
+   replaced it.
+    ```bash
+    ./scripts/fetch-test-binaries.sh
+    export KUBEBUILDER_ASSETS="$PWD/kubebuilder/bin"
+    ```
+
 1. Run tests with your created domains
     ```bash
     TEST_ZONE_NAME="$YOUR_NEW_DOMAIN." TEST_ZONE_NAME_WITH_TWO_FA="$YOUR_NEW_DOMAIN_WITH_TWO_FA." go test -cover .
     ```
 
+   ⚠️  **CI does not run this suite**, and cannot: it needs those binaries
+   (amd64 only) and a live INWX registrar account that it creates and deletes
+   TXT records with. `.github/workflows/image.yml` builds, vets and gofmt-checks
+   only. This is a pre-release check to run by hand.
+
 ### Building the container image
 
 ```bash
-docker build -t registry.git.cluster.tf/los/cert-manager-webhook-inwx:master .
+docker build -t ghcr.io/corelyr-oss/cert-manager-webhook-inwx:dev .
 ```
+
+### Publishing
+
+`.github/workflows/image.yml` pushes both artifacts to GitHub Packages on every
+push to `main`:
+
+| Artifact | Where it lands |
+| --- | --- |
+| image | `ghcr.io/corelyr-oss/cert-manager-webhook-inwx:sha-<short>` |
+| chart | `oci://ghcr.io/corelyr-oss/charts/cert-manager-webhook-inwx` |
+
+Both are **public**, so pulling either needs no credential — no pull secret in
+the consuming namespace, no repository credential in Argo CD.
+
+> ⚠️ **GitHub creates a package private on its first push**, and there is no
+> workflow flag for it: somebody has to make each of the two packages public
+> once, in this repository's package settings. A package left private fails at
+> the *cluster*, not in CI — the push succeeds and the kubelet reports
+> `ImagePullBackOff` on a tag that visibly exists.
+
+The chart is packaged at the version in `deploy/cert-manager-webhook-inwx/Chart.yaml`
+and the push is **skipped** if that version already exists, so a chart change
+without a version bump is silently not published.
+
+Publishing holds no credential of ours: `GITHUB_TOKEN` is minted for the run and
+expires with it, and `packages: write` is what lets it push here.
 
 ### Running the full suite with microk8s
 

@@ -1,8 +1,26 @@
 apiVersion: v2
 description: A Helm chart cert-manager ACME Webhook for INWX
 name: cert-manager-webhook-inwx
-version: 0.0.0
+
+## ⚠️  THIS IS THE VERSION THAT GETS PUBLISHED, and it is the only place that
+## decides. The Gitea pipeline kept this at 0.0.0 and sed'd `chartVersion` from
+## the workflow over it at package time, so the number a packaged chart carried
+## could not be read from the file declaring it. .github/workflows/image.yml
+## packages what this says and SKIPS the push if that version already exists in
+## Harbor -- a chart change merged without a bump here is silently not published.
+##
+## 0.7.0, not 0.6.3, because 0.6.3 is a version that was promised and never
+## existed: clp-talos-state-prod 769834e pinned it at oci://repository.tf and
+## nothing was ever pushed there. Starting a minor above the last artifact that
+## really shipped (0.6.2, on the retired git.cluster.tf) means no version number
+## has two meanings.
+version: 0.7.0
+
+## Overwritten at package time with `--app-version sha-<short>` for the image
+## built from the same commit, which is what values.yaml's empty image.tag falls
+## through to. The value here is only what a `helm package` run by hand produces.
 appVersion: 0.0.0
+
 maintainers:
   - name: Vinzenz Stadtmueller
-    url: https://git.cluster.tf/los/cert-manager-webhook-inwx
+    url: https://github.com/corelyr-oss/cert-manager-webhook-inwx
