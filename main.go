@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -19,8 +20,33 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// groupNameEnvVar is the API group this webhook serves, supplied by the chart
+// from its `groupName` value.
+//
+// IT USED TO BE A LITERAL HERE, "cert-manager-webhook-inwx.git.cluster.tf", while
+// the chart wrote the same string into the APIService, the RBAC rule and both
+// ClusterIssuers. Four copies of one identifier, three of them templated from a
+// value and one compiled in, which made renaming it a change nobody wanted to
+// make -- and a silent misconfiguration if the binary and the chart ever
+// disagreed: the APIService registers, the issuer resolves to a group the
+// running webhook does not answer for, and the only symptom is a DNS-01
+// challenge that never completes.
+//
+// Reading it from the environment makes the chart's value the single source of
+// truth, which is the convention cert-manager's own example webhook uses.
+const groupNameEnvVar = "GROUP_NAME"
+
 func main() {
-	cmd.RunWebhookServer("cert-manager-webhook-inwx.git.cluster.tf",
+	groupName := os.Getenv(groupNameEnvVar)
+	if groupName == "" {
+		// Panic rather than falling back to a default. A wrong-but-plausible
+		// group name is the failure this indirection exists to prevent, and a
+		// webhook answering for a group nothing asks about looks healthy from
+		// every angle except the challenge that quietly never finishes.
+		panic(groupNameEnvVar + " must be set; the Helm chart sets it from .Values.groupName")
+	}
+
+	cmd.RunWebhookServer(groupName,
 		&solver{},
 	)
 }

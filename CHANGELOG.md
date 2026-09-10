@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.0
+
+- **Breaking for existing installs.** The API group is renamed from
+  `cert-manager-webhook-inwx.git.cluster.tf` to
+  `cert-manager-webhook-inwx.corelyr.com`. The old name referred to a Gitea host
+  that no longer exists; nothing ever resolved it — an API group is an
+  identifier, not an address — but it read like a live dependency.
+  Upgrading deletes and recreates the `APIService`, and **every ClusterIssuer
+  naming this webhook must change `groupName` in the same rollout**. Between the
+  two, a DNS-01 challenge resolves to a group nothing answers for.
+- The group name is no longer compiled into the binary. `main.go` reads
+  `GROUP_NAME` from the environment, which the chart sets from `.Values.groupName`
+  — so the APIService, the RBAC rule and the running webhook cannot disagree.
+  The container panics on startup if it is unset, rather than defaulting to
+  something plausible and quietly answering for the wrong group.
+
 ## v0.7.0
 
 - Moved to GitHub (`corelyr-oss/cert-manager-webhook-inwx`) and published from

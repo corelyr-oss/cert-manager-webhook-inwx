@@ -1,13 +1,22 @@
-## The API group this webhook serves, and the `groupName` the ClusterIssuers in
-## clp-talos-state-prod cert-manager/cert-manager-issuer must repeat verbatim.
+## The API group this webhook serves. THE SINGLE SOURCE OF TRUTH for it, as of
+## 0.8.0: the APIService name and spec, the RBAC rule, and the binary's own
+## GROUP_NAME environment variable are all rendered from this one value. It was
+## previously compiled into main.go as well, where it could silently disagree.
 ##
-## ⚠️  STILL NAMES git.cluster.tf ON PURPOSE. It is an API group identifier, not
-## an address -- nothing resolves it -- and it is compiled into main.go as well
-## as written here, into the APIService object, and into both ClusterIssuers.
-## Changing it is a four-place rename that deletes and recreates an APIService
-## cert-manager depends on, so it is deliberately NOT bundled with the registry
-## move. Tracked separately.
-groupName: cert-manager-webhook-inwx.git.cluster.tf
+## The ClusterIssuers are the one copy this chart cannot reach -- they live in
+## clp-talos-state-prod cert-manager/cert-manager-issuer and must repeat this
+## string verbatim in their `solvers[].dns01.webhook.groupName`.
+##
+## ⚠️  IT IS AN IDENTIFIER, NOT AN ADDRESS. Nothing resolves it, which is why the
+## old value (`cert-manager-webhook-inwx.git.cluster.tf`) kept working long after
+## that host was retired and its DNS record was repointed. Renaming it was
+## therefore never urgent -- it is done here because it names a registry that no
+## longer exists and reads like a live dependency to anyone new.
+##
+## ⚠️  CHANGING IT DELETES AND RECREATES AN APIService cert-manager depends on,
+## and the ClusterIssuers must move in the same sync. Between the two, a DNS-01
+## challenge would resolve to a group nothing answers for.
+groupName: cert-manager-webhook-inwx.corelyr.com
 
 credentialsSecretRefs:
 - inwx-credentials

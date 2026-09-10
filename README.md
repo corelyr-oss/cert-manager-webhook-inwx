@@ -14,7 +14,7 @@ The following table lists the configurable parameters of the cert-manager chart 
 
 | Parameter | Description | Default |
 | --------- | ----------- | ------- |
-| `groupName` | Group name of the API service. | `cert-manager-webhook-inwx.git.cluster.tf` |
+| `groupName` | API group the webhook serves. Rendered into the APIService, the RBAC rule and the container's `GROUP_NAME`, so it is the only place to set it. Your ClusterIssuers must repeat it. | `cert-manager-webhook-inwx.corelyr.com` |
 | `credentialsSecretRefs` | Names of secrets where INWX credentials are stored. Used for RBAC to allow reading the secret by the service account name of webhook. | `['inwx-credentials']` |
 | `deployment.loglevel` | Number for the log level verbosity of webhook deployment | 2 |
 | `certManager.namespace` | Namespace where cert-manager is deployed to. | `cert-manager` |
@@ -76,7 +76,7 @@ spec:
     solvers:
       - dns01:
           webhook:
-            groupName: cert-manager-webhook-inwx.git.cluster.tf
+            groupName: cert-manager-webhook-inwx.corelyr.com
             solverName: inwx
             config:
               ttl: 300 # default 300

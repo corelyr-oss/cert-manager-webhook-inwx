@@ -9,12 +9,16 @@ name: cert-manager-webhook-inwx
 ## packages what this says and SKIPS the push if that version already exists in
 ## Harbor -- a chart change merged without a bump here is silently not published.
 ##
-## 0.7.0, not 0.6.3, because 0.6.3 is a version that was promised and never
-## existed: clp-talos-state-prod 769834e pinned it at oci://repository.tf and
-## nothing was ever pushed there. Starting a minor above the last artifact that
-## really shipped (0.6.2, on the retired git.cluster.tf) means no version number
-## has two meanings.
-version: 0.7.0
+## 0.7.0 was the first version published from this repository's new home. 0.8.0
+## renames the API group off git.cluster.tf and makes this chart's `groupName`
+## the only place it is written -- a MINOR and not a patch because upgrading to
+## it deletes and recreates an APIService, and the ClusterIssuers consuming it
+## have to change in the same sync.
+##
+## (0.6.3 never existed: clp-talos-state-prod 769834e pinned it at
+## oci://repository.tf and nothing was ever pushed there. 0.6.2, on the retired
+## git.cluster.tf, was the last artifact that really shipped before 0.7.0.)
+version: 0.8.0
 
 ## Overwritten at package time with `--app-version sha-<short>` for the image
 ## built from the same commit, which is what values.yaml's empty image.tag falls
