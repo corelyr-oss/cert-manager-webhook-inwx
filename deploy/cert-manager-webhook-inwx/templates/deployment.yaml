@@ -29,6 +29,13 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            # The API group the binary serves. main.go reads it here rather than
+            # compiling it in, so this value and the APIService, RBAC rule and
+            # ClusterIssuer group cannot drift apart. Unset, the pod panics on
+            # startup with a message saying so.
+            - name: GROUP_NAME
+              value: {{ .Values.groupName | quote }}
           args:
             - --tls-cert-file=/tls/tls.crt
             - --tls-private-key-file=/tls/tls.key
