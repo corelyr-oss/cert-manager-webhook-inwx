@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"log"
 	"os"
 	"testing"
 	"time"
 
-	"git.cluster.tf/los/cert-manager-webhook-inwx/test"
 	logf "github.com/cert-manager/cert-manager/pkg/logs"
 	dns "github.com/cert-manager/cert-manager/test/acme"
 	"github.com/cert-manager/cert-manager/test/acme/server"
+	"github.com/corelyr-oss/cert-manager-webhook-inwx/test"
 	extapi "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
@@ -27,7 +28,7 @@ func TestRunSuite(t *testing.T) {
 	}
 	fqdn = "cert-manager-dns01-tests." + zone
 
-	ctx := logf.NewContext(nil, nil, t.Name())
+	ctx := logf.NewContext(context.Background(), logf.Log, t.Name())
 
 	srv := &server.BasicServer{
 		Handler: &test.Handler{
@@ -59,7 +60,6 @@ func TestRunSuite(t *testing.T) {
 		dns.SetResolvedFQDN(fqdn),
 		dns.SetAllowAmbientCredentials(false),
 		dns.SetDNSServer(srv.ListenAddr()),
-		dns.SetBinariesPath("kubebuilder/bin"),
 		dns.SetPropagationLimit(time.Duration(60)*time.Second),
 		dns.SetUseAuthoritative(false),
 		// Set to false because INWX implementation deletes all records
@@ -79,7 +79,7 @@ func TestRunSuiteWithSecret(t *testing.T) {
 	}
 	fqdn = "cert-manager-dns01-tests-with-secret." + zone
 
-	ctx := logf.NewContext(nil, nil, t.Name())
+	ctx := logf.NewContext(context.Background(), logf.Log, t.Name())
 
 	srv := &server.BasicServer{
 		Handler: &test.Handler{
@@ -112,7 +112,6 @@ func TestRunSuiteWithSecret(t *testing.T) {
 		dns.SetAllowAmbientCredentials(false),
 		dns.SetDNSServer(srv.ListenAddr()),
 		dns.SetManifestPath("testdata/secret-inwx-credentials.yaml"),
-		dns.SetBinariesPath("kubebuilder/bin"),
 		dns.SetPropagationLimit(time.Duration(60)*time.Second),
 		dns.SetUseAuthoritative(false),
 		dns.SetConfig(&extapi.JSON{
@@ -131,7 +130,7 @@ func TestRunSuiteWithTwoFA(t *testing.T) {
 
 	fqdn = "cert-manager-dns01-tests." + zoneTwoFA
 
-	ctx := logf.NewContext(nil, nil, t.Name())
+	ctx := logf.NewContext(context.Background(), logf.Log, t.Name())
 
 	srv := &server.BasicServer{
 		Handler: &test.Handler{
@@ -163,7 +162,6 @@ func TestRunSuiteWithTwoFA(t *testing.T) {
 		dns.SetResolvedFQDN(fqdn),
 		dns.SetAllowAmbientCredentials(false),
 		dns.SetDNSServer(srv.ListenAddr()),
-		dns.SetBinariesPath("kubebuilder/bin"),
 		dns.SetPropagationLimit(time.Duration(60)*time.Second),
 		dns.SetUseAuthoritative(false),
 		// Set to false because INWX implementation deletes all records
@@ -183,7 +181,7 @@ func TestRunSuiteWithSecretAndTwoFA(t *testing.T) {
 	}
 	fqdn = "cert-manager-dns01-tests-with-secret." + zoneTwoFA
 
-	ctx := logf.NewContext(nil, nil, t.Name())
+	ctx := logf.NewContext(context.Background(), logf.Log, t.Name())
 
 	srv := &server.BasicServer{
 		Handler: &test.Handler{
@@ -216,7 +214,6 @@ func TestRunSuiteWithSecretAndTwoFA(t *testing.T) {
 		dns.SetAllowAmbientCredentials(false),
 		dns.SetDNSServer(srv.ListenAddr()),
 		dns.SetManifestPath("testdata/secret-inwx-credentials-otp.yaml"),
-		dns.SetBinariesPath("kubebuilder/bin"),
 		dns.SetPropagationLimit(time.Duration(60)*time.Second),
 		dns.SetUseAuthoritative(false),
 		dns.SetConfig(&extapi.JSON{

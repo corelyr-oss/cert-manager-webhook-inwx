@@ -1,4 +1,4 @@
-module git.cluster.tf/los/cert-manager-webhook-inwx
+module github.com/corelyr-oss/cert-manager-webhook-inwx
 
 go 1.22.0
 

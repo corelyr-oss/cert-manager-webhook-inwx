@@ -1,3 +1,12 @@
+## The API group this webhook serves, and the `groupName` the ClusterIssuers in
+## clp-talos-state-prod cert-manager/cert-manager-issuer must repeat verbatim.
+##
+## ⚠️  STILL NAMES git.cluster.tf ON PURPOSE. It is an API group identifier, not
+## an address -- nothing resolves it -- and it is compiled into main.go as well
+## as written here, into the APIService object, and into both ClusterIssuers.
+## Changing it is a four-place rename that deletes and recreates an APIService
+## cert-manager depends on, so it is deliberately NOT bundled with the registry
+## move. Tracked separately.
 groupName: cert-manager-webhook-inwx.git.cluster.tf
 
 credentialsSecretRefs:
@@ -10,13 +19,32 @@ certManager:
   namespace: cert-manager
   serviceAccountName: cert-manager
 
+## Was unset while templates/deployment.yaml read it, so `replicas:` rendered
+## empty and the API server defaulted it. Stated now; the value is unchanged.
+replicaCount: 1
+
 image:
-  repository: git.cluster.tf/los/cert-manager-webhook-inwx
+  ## ghcr.io, NOT git.cluster.tf (dead) and NOT repository.tf (a migration that
+  ## never published anything). Built and pushed by .github/workflows/image.yml
+  ## with the run's own GITHUB_TOKEN.
+  repository: ghcr.io/corelyr-oss/cert-manager-webhook-inwx
   pullPolicy: IfNotPresent
+  ## EMPTY ON PURPOSE -- falls through to .Chart.AppVersion, which the workflow
+  ## sets to the image tag built from the same commit. The chart version is
+  ## therefore already an exact image pin; overriding a tag here would decouple
+  ## the two again, which is how sha-918d625 outlived the registry holding it.
   tag: ""
 
-imagePullSecrets:
-  - name: docker-key-gitea
+## EMPTY, and that is the point of publishing publicly: an anonymous pull works,
+## so no cluster consuming this chart needs a registry credential, a pull secret,
+## or a Vault role to mint one.
+##
+## ⚠️  IF PULLS 401, THE PACKAGE IS STILL PRIVATE. GitHub creates a package
+## private on its first push and only a human can make it public, in the
+## repository's package settings -- there is no workflow flag for it. The
+## symptom is ImagePullBackOff on a tag that visibly exists, which reads like a
+## missing pull secret. It is not; do not add one to work around it.
+imagePullSecrets: []
 
 nameOverride: ""
 fullnameOverride: ""
