@@ -18,7 +18,7 @@ name: cert-manager-webhook-inwx
 ## (0.6.3 never existed: clp-talos-state-prod 769834e pinned it at
 ## oci://repository.tf and nothing was ever pushed there. 0.6.2, on the retired
 ## git.cluster.tf, was the last artifact that really shipped before 0.7.0.)
-version: 0.8.0
+version: 0.8.1
 
 ## Overwritten at package time with `--app-version sha-<short>` for the image
 ## built from the same commit, which is what values.yaml's empty image.tag falls

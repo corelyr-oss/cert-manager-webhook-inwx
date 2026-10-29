@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.8.1
+
+- **Record IDs are strings now.** Since 2026-10-12 INWX returns record IDs as
+  strings (`"id": "2198200769"`), and goinwx v0.10.0 decoded them into an
+  `int`. goinwx v0.12.0 changed the type upstream (nrdcg/goinwx#14); `main.go`
+  only passes the ID back to `DeleteRecord`, so the bump needs no code change.
+  - `CleanUp` failed every time (`'record[0].id' expected type 'int', got
+    unconvertible type 'string'`): Challenges stayed `valid` behind their
+    finalizer and the `_acme-challenge` TXT records were never deleted.
+  - `Present` failed too (`'[id]' expected type 'int'`), but only after INWX
+    had created the record, so cert-manager's retry got `Object exists`, which
+    `Present` treats as success. Issuance kept working by accident, one retry
+    late.
+
 ## v0.8.0
 
 - **Breaking for existing installs.** The API group is renamed from
